@@ -1,12 +1,15 @@
-﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
+// Copyright © 2010 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CefSharp.Example;
-using System.Threading.Tasks;
-using System.Text;
+using CefSharp.Example.Callback;
+using CefSharp.Example.Handlers;
 
 namespace CefSharp.WinForms.Example
 {
@@ -114,6 +117,25 @@ namespace CefSharp.WinForms.Example
             new AboutBox().ShowDialog();
         }
 
+        public void RemoveTab(IntPtr windowHandle)
+        {
+            var parentControl = FromChildHandle(windowHandle);
+            if (!parentControl.IsDisposed)
+            {
+                if (parentControl.Parent is TabPage tabPage)
+                {
+                    browserTabControl.TabPages.Remove(tabPage);
+                }
+                else if (parentControl.Parent is Panel panel)
+                {
+                    var browserTabUserControl = (BrowserTabUserControl)panel.Parent;
+
+                    var tab = (TabPage)browserTabUserControl.Parent;
+                    browserTabControl.TabPages.Remove(tab);
+                }
+            }
+        }
+
         private void FindMenuItemClick(object sender, EventArgs e)
         {
             var control = GetCurrentTabControl();
@@ -152,28 +174,28 @@ namespace CefSharp.WinForms.Example
 
         private void CloseTabToolStripMenuItemClick(object sender, EventArgs e)
         {
-            if(browserTabControl.Controls.Count == 0)
+            if (browserTabControl.TabPages.Count == 0)
             {
                 return;
             }
 
             var currentIndex = browserTabControl.SelectedIndex;
 
-            var tabPage = browserTabControl.Controls[currentIndex];
+            var tabPage = browserTabControl.TabPages[currentIndex];
 
             var control = GetCurrentTabControl();
-            if (control != null)
+            if (control != null && !control.IsDisposed)
             {
                 control.Dispose();
             }
 
-            browserTabControl.Controls.Remove(tabPage);
+            browserTabControl.TabPages.Remove(tabPage);
 
             tabPage.Dispose();
 
             browserTabControl.SelectedIndex = currentIndex - 1;
 
-            if (browserTabControl.Controls.Count == 0)
+            if (browserTabControl.TabPages.Count == 0)
             {
                 ExitApplication();
             }
@@ -372,7 +394,7 @@ namespace CefSharp.WinForms.Example
             if (control != null)
             {
                 var frame = control.Browser.GetFocusedFrame();
-                
+
                 //Execute extension method
                 frame.ActiveElementAcceptsTextInput().ContinueWith(task =>
                 {
@@ -514,6 +536,67 @@ namespace CefSharp.WinForms.Example
             if (control != null)
             {
                 control.Browser.Load("https://httpbin.org/");
+            }
+        }
+
+        private void RunFileDialogToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            var control = GetCurrentTabControl();
+            if (control != null)
+            {
+                control.Browser.GetBrowserHost().RunFileDialog(CefFileDialogMode.Open, "Open", null, new List<string> { "*.*" }, 0, new RunFileDialogCallback());
+            }
+        }
+
+        private void LoadExtensionsToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            var control = GetCurrentTabControl();
+            if (control != null)
+            {
+                //The sample extension only works for http(s) schemes
+                if (control.Browser.Address.StartsWith("http"))
+                {
+                    var requestContext = control.Browser.GetBrowserHost().RequestContext;
+
+                    var dir = Path.Combine(AppContext.BaseDirectory, @"..\..\..\..\CefSharp.Example\Extensions");
+                    dir = Path.GetFullPath(dir);
+                    if (!Directory.Exists(dir))
+                    {
+                        throw new DirectoryNotFoundException("Unable to locate example extensions folder - " + dir);
+                    }
+
+                    var extensionHandler = new ExtensionHandler
+                    {
+                        LoadExtensionPopup = (url) =>
+                        {
+                            BeginInvoke(new Action(() =>
+                            {
+                                var extensionForm = new Form();
+
+                                var extensionBrowser = new ChromiumWebBrowser(url);
+                                //extensionBrowser.IsBrowserInitializedChanged += (s, args) =>
+                                //{
+                                //    extensionBrowser.ShowDevTools();
+                                //};
+
+                                extensionForm.Controls.Add(extensionBrowser);
+
+                                extensionForm.Show(this);
+                            }));
+                        },
+                        GetActiveBrowser = (extension, isIncognito) =>
+                        {
+                            //Return the active browser for which the extension will act upon
+                            return control.Browser.GetBrowser();
+                        }
+                    };
+
+                    requestContext.LoadExtensionsFromDirectory(dir, extensionHandler);
+                }
+                else
+                {
+                    MessageBox.Show("The sample extension only works with http(s) schemes, please load a different website and try again", "Unable to load Extension");
+                }
             }
         }
     }

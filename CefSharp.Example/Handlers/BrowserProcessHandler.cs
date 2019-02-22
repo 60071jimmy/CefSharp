@@ -1,8 +1,9 @@
-﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
+// Copyright © 2016 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using CefSharp.SchemeHandler;
@@ -21,14 +22,14 @@ namespace CefSharp.Example.Handlers
             //The Global CookieManager has been initialized, you can now set cookies
             var cookieManager = Cef.GetGlobalCookieManager();
             cookieManager.SetStoragePath("cookies", true);
-            cookieManager.SetSupportedSchemes(new string[] {"custom"});
-            if(cookieManager.SetCookie("custom://cefsharp/home.html", new Cookie
+            cookieManager.SetSupportedSchemes(new string[] { "custom" });
+            if (cookieManager.SetCookie("custom://cefsharp/home.html", new Cookie
             {
                 Name = "CefSharpTestCookie",
                 Value = "ILikeCookies",
                 Expires = DateTime.Now.AddDays(1)
             }))
-            { 
+            {
                 cookieManager.VisitUrlCookiesAsync("custom://cefsharp/home.html", false).ContinueWith(previous =>
                 {
                     if (previous.Status == TaskStatus.RanToCompletion)
@@ -36,8 +37,8 @@ namespace CefSharp.Example.Handlers
                         var cookies = previous.Result;
 
                         foreach (var cookie in cookies)
-                        { 
-                            Debug.WriteLine("CookieName:" + cookie.Name);
+                        {
+                            Debug.WriteLine("CookieName: " + cookie.Name);
                         }
                     }
                     else
@@ -46,7 +47,7 @@ namespace CefSharp.Example.Handlers
                     }
                 });
 
-                cookieManager.VisitAllCookiesAsync().ContinueWith(t => 
+                cookieManager.VisitAllCookiesAsync().ContinueWith(t =>
                 {
                     if (t.Status == TaskStatus.RanToCompletion)
                     {
@@ -54,7 +55,7 @@ namespace CefSharp.Example.Handlers
 
                         foreach (var cookie in cookies)
                         {
-                            Debug.WriteLine("CookieName:" + cookie.Name);
+                            Debug.WriteLine("CookieName: " + cookie.Name);
                         }
                     }
                     else
@@ -73,6 +74,19 @@ namespace CefSharp.Example.Handlers
                 //The default is true, you can change to false to disable
                 context.SetPreference("webkit.webprefs.plugins_enabled", true, out errorMessage);
 
+                //string error;
+                //var dicts = new List<string> { "en-GB", "en-US" };
+                //var success = context.SetPreference("spellcheck.dictionaries", dicts, out error);
+
+                //The no-proxy-server flag is set in CefExample.cs class, you'll have to remove that before you can test
+                //this code out
+                //var v = new Dictionary<string, string>
+                //{
+                //    ["mode"] = "fixed_servers",
+                //    ["server"] = "scheme://host:port"
+                //};
+                //success = context.SetPreference("proxy", v, out errorMessage);
+
                 //It's possible to register a scheme handler for the default http and https schemes
                 //In this example we register the FolderSchemeHandlerFactory for https://cefsharp.example
                 //Best to include the domain name, so only requests for that domain are forwarded to your scheme handler
@@ -89,7 +103,7 @@ namespace CefSharp.Example.Handlers
         {
             //If the delay is greater than the Maximum then use MaxTimerDelay
             //instead - we do this to achieve a minimum number of FPS
-            if(delay > MaxTimerDelay)
+            if (delay > MaxTimerDelay)
             {
                 delay = MaxTimerDelay;
             }
@@ -103,7 +117,7 @@ namespace CefSharp.Example.Handlers
 
         public virtual void Dispose()
         {
-            
+
         }
     }
 }

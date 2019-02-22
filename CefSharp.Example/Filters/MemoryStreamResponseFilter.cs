@@ -1,58 +1,73 @@
-﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
+// Copyright © 2017 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
 using System;
 using System.IO;
-using System.Threading.Tasks;
-using CefSharp.Internals;
 
 namespace CefSharp.Example.Filters
 {
-	public class MemoryStreamResponseFilter : IResponseFilter
-	{
-		private MemoryStream memoryStream;
+    /// <summary>
+    /// MemoryStreamResponseFilter - copies all data from IResponseFilter.Filter
+    /// to a MemoryStream. This is provided as an example to get you started and has not been
+    /// production tested. If you experience problems you should refer to the CEF documentation
+    /// and ask any questions you have on http://magpcss.org/ceforum/index.php
+    /// Make sure to ask your question in the context of the CEF API (remember that CefSharp is just a wrapper).
+    /// https://magpcss.org/ceforum/apidocs3/projects/(default)/CefResponseFilter.html#Filter(void*,size_t,size_t&,void*,size_t,size_t&)
+    /// </summary>
+    public class MemoryStreamResponseFilter : IResponseFilter
+    {
+        private MemoryStream memoryStream;
 
-		bool IResponseFilter.InitFilter()
-		{
-			//NOTE: We could initialize this earlier, just one possible use of InitFilter
-			memoryStream = new MemoryStream();
-			 
-			return true;
-		}
+        bool IResponseFilter.InitFilter()
+        {
+            //NOTE: We could initialize this earlier, just one possible use of InitFilter
+            memoryStream = new MemoryStream();
 
-		FilterStatus IResponseFilter.Filter(Stream dataIn, out long dataInRead, Stream dataOut, out long dataOutWritten)
-		{
-			if (dataIn == null)
-			{
-				dataInRead = 0;
-				dataOutWritten = 0;
+            return true;
+        }
 
-				return FilterStatus.Done;
-			}
+        FilterStatus IResponseFilter.Filter(Stream dataIn, out long dataInRead, Stream dataOut, out long dataOutWritten)
+        {
+            if (dataIn == null)
+            {
+                dataInRead = 0;
+                dataOutWritten = 0;
 
-			dataInRead = dataIn.Length;
-			dataOutWritten = Math.Min(dataInRead, dataOut.Length);
+                return FilterStatus.Done;
+            }
 
-			//Important we copy dataIn to dataOut
-			dataIn.CopyTo(dataOut);
+            //Calculate how much data we can read, in some instances dataIn.Length is
+            //greater than dataOut.Length
+            dataInRead = Math.Min(dataIn.Length, dataOut.Length);
+            dataOutWritten = dataInRead;
 
-			//Copy data to stream
-			dataIn.Position = 0;
-			dataIn.CopyTo(memoryStream);
+            var readBytes = new byte[dataInRead];
+            dataIn.Read(readBytes, 0, readBytes.Length);
+            dataOut.Write(readBytes, 0, readBytes.Length);
 
-			return FilterStatus.Done;
-		}
+            //Write buffer to the memory stream
+            memoryStream.Write(readBytes, 0, readBytes.Length);
 
-		void IDisposable.Dispose()
-		{
-			memoryStream.Dispose();
-			memoryStream = null;
-		}
+            //If we read less than the total amount avaliable then we need
+            //return FilterStatus.NeedMoreData so we can then write the rest
+            if (dataInRead < dataIn.Length)
+            {
+                return FilterStatus.NeedMoreData;
+            }
 
-		public byte[] Data
-		{
-			get { return memoryStream.ToArray(); }
-		}
-	}
+            return FilterStatus.Done;
+        }
+
+        void IDisposable.Dispose()
+        {
+            memoryStream.Dispose();
+            memoryStream = null;
+        }
+
+        public byte[] Data
+        {
+            get { return memoryStream.ToArray(); }
+        }
+    }
 }

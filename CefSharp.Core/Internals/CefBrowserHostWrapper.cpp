@@ -1,18 +1,21 @@
-// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
+// Copyright © 2015 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
 #include "Stdafx.h"
+#include "CefBrowserHostWrapper.h"
+
 #include "include\cef_client.h"
 
-#include "CefBrowserHostWrapper.h"
-#include "CefDragDataWrapper.h"
-#include "CefPdfPrintCallbackWrapper.h"
-#include "WindowInfo.h"
-#include "CefTaskScheduler.h"
 #include "Cef.h"
-#include "RequestContext.h"
+#include "CefExtensionWrapper.h"
+#include "CefTaskScheduler.h"
+#include "CefDragDataWrapper.h"
+#include "CefRunFileDialogCallbackAdapter.h"
+#include "CefPdfPrintCallbackWrapper.h"
 #include "CefNavigationEntryVisitorAdapter.h"
+#include "RequestContext.h"
+#include "WindowInfo.h"
 
 void CefBrowserHostWrapper::DragTargetDragEnter(IDragData^ dragData, MouseEvent mouseEvent, DragOperationsMask allowedOperations)
 {
@@ -140,7 +143,7 @@ void CefBrowserHostWrapper::ShowDevTools(IWindowInfo^ windowInfo, int inspectEle
     CefBrowserSettings settings;
     CefWindowInfo nativeWindowInfo;
 
-    if(windowInfo == nullptr)
+    if (windowInfo == nullptr)
     {
         nativeWindowInfo.SetAsPopup(_browserHost->GetWindowHandle(), "DevTools");
     }
@@ -182,6 +185,32 @@ void CefBrowserHostWrapper::ReplaceMisspelling(String^ word)
     _browserHost->ReplaceMisspelling(StringUtils::ToNative(word));
 }
 
+IExtension^ CefBrowserHostWrapper::Extension::get()
+{
+    ThrowIfDisposed();
+
+    auto extension = _browserHost->GetExtension();
+
+    if (extension.get())
+    {
+        return gcnew CefExtensionWrapper(_browserHost->GetExtension());
+    }
+
+    return nullptr;
+}
+
+void CefBrowserHostWrapper::RunFileDialog(CefFileDialogMode mode, String^ title, String^ defaultFilePath, IList<String^>^ acceptFilters, int selectedAcceptFilter, IRunFileDialogCallback^ callback)
+{
+    ThrowIfDisposed();
+
+    _browserHost->RunFileDialog((CefBrowserHost::FileDialogMode)mode,
+        StringUtils::ToNative(title),
+        StringUtils::ToNative(defaultFilePath),
+        StringUtils::ToNative(acceptFilters),
+        selectedAcceptFilter,
+        new CefRunFileDialogCallbackAdapter(callback));
+}
+
 void CefBrowserHostWrapper::Find(int identifier, String^ searchText, bool forward, bool matchCase, bool findNext)
 {
     ThrowIfDisposed();
@@ -221,7 +250,7 @@ void CefBrowserHostWrapper::SendKeyEvent(KeyEvent keyEvent)
     nativeKeyEvent.type = (cef_key_event_type_t)keyEvent.Type;
     nativeKeyEvent.native_key_code = keyEvent.NativeKeyCode;
     nativeKeyEvent.windows_key_code = keyEvent.WindowsKeyCode;
-        
+
     _browserHost->SendKeyEvent(nativeKeyEvent);
 }
 
@@ -263,12 +292,12 @@ double CefBrowserHostWrapper::GetZoomLevelOnUI()
     CefTaskScheduler::EnsureOn(TID_UI, "CefBrowserHostWrapper::GetZoomLevel");
 
     //Don't throw exception if no browser host here as it's not easy to handle
-    if(_browserHost.get())
+    if (_browserHost.get())
     {
         return _browserHost->GetZoomLevel();
     }
 
-    return 0.0;	
+    return 0.0;
 }
 
 void CefBrowserHostWrapper::SendMouseWheelEvent(MouseEvent mouseEvent, int deltaX, int deltaY)
@@ -307,12 +336,20 @@ void CefBrowserHostWrapper::Invalidate(PaintElementType type)
     _browserHost->Invalidate((CefBrowserHost::PaintElementType)type);
 }
 
-void CefBrowserHostWrapper::ImeSetComposition(String^ text, cli::array<CompositionUnderline>^ underlines, Nullable<Range> selectionRange)
+bool CefBrowserHostWrapper::IsBackgroundHost::get()
+{
+    ThrowIfDisposed();
+
+    return _browserHost->IsBackgroundHost();
+}
+
+void CefBrowserHostWrapper::ImeSetComposition(String^ text, cli::array<CompositionUnderline>^ underlines, Nullable<Range> replacementRange, Nullable<Range> selectionRange)
 {
     ThrowIfDisposed();
 
     std::vector<CefCompositionUnderline> underlinesVector = std::vector<CefCompositionUnderline>();
-    CefRange range;
+    CefRange repRange;
+    CefRange selRange;
 
     if (underlines != nullptr && underlines->Length > 0)
     {
@@ -327,21 +364,31 @@ void CefBrowserHostWrapper::ImeSetComposition(String^ text, cli::array<Compositi
         }
     }
 
-    if (selectionRange.HasValue)
+    if (replacementRange.HasValue)
     {
-        range = CefRange(selectionRange.Value.From, selectionRange.Value.To);
+        repRange = CefRange(replacementRange.Value.From, replacementRange.Value.To);
     }
 
-    //Replacement Range is Mac OSX only
-    _browserHost->ImeSetComposition(StringUtils::ToNative(text), underlinesVector, CefRange(), range);
+    if (selectionRange.HasValue)
+    {
+        selRange = CefRange(selectionRange.Value.From, selectionRange.Value.To);
+    }
+
+    _browserHost->ImeSetComposition(StringUtils::ToNative(text), underlinesVector, repRange, selRange);
 }
 
-void CefBrowserHostWrapper::ImeCommitText(String^ text)
+void CefBrowserHostWrapper::ImeCommitText(String^ text, Nullable<Range> replacementRange, int relativeCursorPos)
 {
     ThrowIfDisposed();
 
-    //Range and cursor position are Mac OSX only
-    _browserHost->ImeCommitText(StringUtils::ToNative(text), CefRange(), NULL);
+    CefRange repRange;
+
+    if (replacementRange.HasValue)
+    {
+        repRange = CefRange(replacementRange.Value.From, replacementRange.Value.To);
+    }
+
+    _browserHost->ImeCommitText(StringUtils::ToNative(text), repRange, relativeCursorPos);
 }
 
 void CefBrowserHostWrapper::ImeFinishComposingText(bool keepSelection)
@@ -511,6 +558,13 @@ IntPtr CefBrowserHostWrapper::GetOpenerWindowHandle()
     return IntPtr(_browserHost->GetOpenerWindowHandle());
 }
 
+void CefBrowserHostWrapper::SendExternalBeginFrame()
+{
+    ThrowIfDisposed();
+
+    _browserHost->SendExternalBeginFrame();
+}
+
 void CefBrowserHostWrapper::SendCaptureLostEvent()
 {
     ThrowIfDisposed();
@@ -555,66 +609,66 @@ int CefBrowserHostWrapper::GetCefKeyboardModifiers(WPARAM wparam, LPARAM lparam)
 
     switch (wparam)
     {
-    case VK_RETURN:
-        if ((lparam >> 16) & KF_EXTENDED)
+        case VK_RETURN:
+            if ((lparam >> 16) & KF_EXTENDED)
+                modifiers |= EVENTFLAG_IS_KEY_PAD;
+            break;
+        case VK_INSERT:
+        case VK_DELETE:
+        case VK_HOME:
+        case VK_END:
+        case VK_PRIOR:
+        case VK_NEXT:
+        case VK_UP:
+        case VK_DOWN:
+        case VK_LEFT:
+        case VK_RIGHT:
+            if (!((lparam >> 16) & KF_EXTENDED))
+                modifiers |= EVENTFLAG_IS_KEY_PAD;
+            break;
+        case VK_NUMLOCK:
+        case VK_NUMPAD0:
+        case VK_NUMPAD1:
+        case VK_NUMPAD2:
+        case VK_NUMPAD3:
+        case VK_NUMPAD4:
+        case VK_NUMPAD5:
+        case VK_NUMPAD6:
+        case VK_NUMPAD7:
+        case VK_NUMPAD8:
+        case VK_NUMPAD9:
+        case VK_DIVIDE:
+        case VK_MULTIPLY:
+        case VK_SUBTRACT:
+        case VK_ADD:
+        case VK_DECIMAL:
+        case VK_CLEAR:
             modifiers |= EVENTFLAG_IS_KEY_PAD;
-        break;
-    case VK_INSERT:
-    case VK_DELETE:
-    case VK_HOME:
-    case VK_END:
-    case VK_PRIOR:
-    case VK_NEXT:
-    case VK_UP:
-    case VK_DOWN:
-    case VK_LEFT:
-    case VK_RIGHT:
-        if (!((lparam >> 16) & KF_EXTENDED))
-            modifiers |= EVENTFLAG_IS_KEY_PAD;
-        break;
-    case VK_NUMLOCK:
-    case VK_NUMPAD0:
-    case VK_NUMPAD1:
-    case VK_NUMPAD2:
-    case VK_NUMPAD3:
-    case VK_NUMPAD4:
-    case VK_NUMPAD5:
-    case VK_NUMPAD6:
-    case VK_NUMPAD7:
-    case VK_NUMPAD8:
-    case VK_NUMPAD9:
-    case VK_DIVIDE:
-    case VK_MULTIPLY:
-    case VK_SUBTRACT:
-    case VK_ADD:
-    case VK_DECIMAL:
-    case VK_CLEAR:
-        modifiers |= EVENTFLAG_IS_KEY_PAD;
-        break;
-    case VK_SHIFT:
-        if (IsKeyDown(VK_LSHIFT))
+            break;
+        case VK_SHIFT:
+            if (IsKeyDown(VK_LSHIFT))
+                modifiers |= EVENTFLAG_IS_LEFT;
+            else if (IsKeyDown(VK_RSHIFT))
+                modifiers |= EVENTFLAG_IS_RIGHT;
+            break;
+        case VK_CONTROL:
+            if (IsKeyDown(VK_LCONTROL))
+                modifiers |= EVENTFLAG_IS_LEFT;
+            else if (IsKeyDown(VK_RCONTROL))
+                modifiers |= EVENTFLAG_IS_RIGHT;
+            break;
+        case VK_MENU:
+            if (IsKeyDown(VK_LMENU))
+                modifiers |= EVENTFLAG_IS_LEFT;
+            else if (IsKeyDown(VK_RMENU))
+                modifiers |= EVENTFLAG_IS_RIGHT;
+            break;
+        case VK_LWIN:
             modifiers |= EVENTFLAG_IS_LEFT;
-        else if (IsKeyDown(VK_RSHIFT))
+            break;
+        case VK_RWIN:
             modifiers |= EVENTFLAG_IS_RIGHT;
-        break;
-    case VK_CONTROL:
-        if (IsKeyDown(VK_LCONTROL))
-            modifiers |= EVENTFLAG_IS_LEFT;
-        else if (IsKeyDown(VK_RCONTROL))
-            modifiers |= EVENTFLAG_IS_RIGHT;
-        break;
-    case VK_MENU:
-        if (IsKeyDown(VK_LMENU))
-            modifiers |= EVENTFLAG_IS_LEFT;
-        else if (IsKeyDown(VK_RMENU))
-            modifiers |= EVENTFLAG_IS_RIGHT;
-        break;
-    case VK_LWIN:
-        modifiers |= EVENTFLAG_IS_LEFT;
-        break;
-    case VK_RWIN:
-        modifiers |= EVENTFLAG_IS_RIGHT;
-        break;
+            break;
     }
     return modifiers;
 }

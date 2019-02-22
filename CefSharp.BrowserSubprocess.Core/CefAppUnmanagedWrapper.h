@@ -1,4 +1,4 @@
-﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
+// Copyright © 2014 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -19,12 +19,10 @@ namespace CefSharp
     private class CefAppUnmanagedWrapper : CefApp, CefRenderProcessHandler
     {
     private:
-        static const CefString kPromiseCreatorScript;
-
         gcroot<Action<CefBrowserWrapper^>^> _onBrowserCreated;
         gcroot<Action<CefBrowserWrapper^>^> _onBrowserDestroyed;
         gcroot<ConcurrentDictionary<int, CefBrowserWrapper^>^> _browserWrappers;
-        gcroot<List<CefExtension^>^> _extensions;
+        gcroot<List<V8Extension^>^> _extensions;
         gcroot<List<CefCustomScheme^>^> _schemes;
         bool _focusedNodeChangedEnabled;
         bool _legacyBindingEnabled;
@@ -35,14 +33,14 @@ namespace CefSharp
         gcroot<RegisterBoundObjectRegistry^> _registerBoundObjectRegistry;
 
     public:
-        static const CefString kPromiseCreatorFunction;
+        static const CefString kPromiseCreatorScript;
 
         CefAppUnmanagedWrapper(List<CefCustomScheme^>^ schemes, bool enableFocusedNodeChanged, Action<CefBrowserWrapper^>^ onBrowserCreated, Action<CefBrowserWrapper^>^ onBrowserDestoryed)
         {
             _onBrowserCreated = onBrowserCreated;
             _onBrowserDestroyed = onBrowserDestoryed;
             _browserWrappers = gcnew ConcurrentDictionary<int, CefBrowserWrapper^>();
-            _extensions = gcnew List<CefExtension^>();
+            _extensions = gcnew List<V8Extension^>();
             _schemes = schemes;
             _focusedNodeChangedEnabled = enableFocusedNodeChanged;
             _javascriptObjects = gcnew Dictionary<String^, JavascriptObject^>();

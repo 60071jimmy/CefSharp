@@ -1,6 +1,9 @@
-﻿// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
+// Copyright © 2010 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
+
+#ifndef CEFSHARP_CORE_INTERNALS_CLIENTADAPTER_H_
+#define CEFSHARP_CORE_INTERNALS_CLIENTADAPTER_H_
 
 #pragma once
 
@@ -53,13 +56,13 @@ namespace CefSharp
 
         public:
             ClientAdapter(IWebBrowserInternal^ browserControl, IBrowserAdapter^ browserAdapter) :
-                _browserControl(browserControl), 
+                _browserControl(browserControl),
                 _popupBrowsers(gcnew Dictionary<int, IBrowser^>()),
                 _pendingTaskRepository(gcnew PendingTaskRepository<JavascriptResponse^>()),
                 _browserAdapter(browserAdapter),
                 _browserHwnd(NULL)
             {
-                
+
             }
 
             ~ClientAdapter()
@@ -120,10 +123,12 @@ namespace CefSharp
             virtual DECL cef_return_value_t OnBeforeResourceLoad(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request, CefRefPtr<CefRequestCallback> callback) OVERRIDE;
             virtual DECL bool GetAuthCredentials(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, bool isProxy,
                 const CefString& host, int port, const CefString& realm, const CefString& scheme, CefRefPtr<CefAuthCallback> callback) OVERRIDE;
-            virtual DECL bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request, bool isRedirect) OVERRIDE;
+            virtual DECL bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request, bool userGesture, bool isRedirect) OVERRIDE;
             virtual DECL bool OnOpenURLFromTab(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, const CefString& targetUrl,
                 CefRequestHandler::WindowOpenDisposition targetDisposition, bool userGesture) OVERRIDE;
             virtual DECL bool OnCertificateError(CefRefPtr<CefBrowser> browser, cef_errorcode_t cert_error, const CefString& request_url, CefRefPtr<CefSSLInfo> ssl_info, CefRefPtr<CefRequestCallback> callback) OVERRIDE;
+            virtual DECL bool CanGetCookies(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request) OVERRIDE;
+            virtual DECL bool CanSetCookie(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request, const CefCookie& cookie) OVERRIDE;
             virtual DECL bool OnQuotaRequest(CefRefPtr<CefBrowser> browser, const CefString& originUrl, int64 newSize, CefRefPtr<CefRequestCallback> callback) OVERRIDE;
             virtual DECL void OnResourceRedirect(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request, CefRefPtr<CefResponse> response, CefString& newUrl) OVERRIDE;
             virtual DECL bool OnResourceResponse(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefRequest> request, CefRefPtr<CefResponse> response) OVERRIDE;
@@ -198,3 +203,4 @@ namespace CefSharp
         };
     }
 }
+#endif  // CEFSHARP_CORE_INTERNALS_CLIENTADAPTER_H_

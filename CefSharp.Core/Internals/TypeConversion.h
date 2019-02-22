@@ -1,4 +1,4 @@
-// Copyright © 2010-2017 The CefSharp Authors. All rights reserved.
+// Copyright Â© 2015 The CefSharp Authors. All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 #include "Serialization\V8Serialization.h"
 
 using namespace System::Collections::Generic;
+using namespace System::Collections::Specialized;
 using namespace CefSharp::Internals::Serialization;
 
 namespace CefSharp
@@ -52,7 +53,7 @@ namespace CefSharp
                 auto item = gcnew CefSharp::DownloadItem();
                 item->IsValid = downloadItem->IsValid();
                 //NOTE: Description for IsValid says `Do not call any other methods if this function returns false.` so only load if IsValid = true
-                if(item->IsValid)
+                if (item->IsValid)
                 {
                     item->IsInProgress = downloadItem->IsInProgress();
                     item->IsComplete = downloadItem->IsComplete();
@@ -79,7 +80,7 @@ namespace CefSharp
             static Nullable<DateTime> FromNative(CefTime time)
             {
                 auto epoch = time.GetDoubleT();
-                if(epoch == 0)
+                if (epoch == 0)
                 {
                     return Nullable<DateTime>();
                 }
@@ -89,9 +90,9 @@ namespace CefSharp
             static WebPluginInfo^ FromNative(CefRefPtr<CefWebPluginInfo> webPluginInfo)
             {
                 return gcnew WebPluginInfo(StringUtils::ToClr(webPluginInfo->GetName()),
-                                           StringUtils::ToClr(webPluginInfo->GetDescription()),
-                                           StringUtils::ToClr(webPluginInfo->GetPath()),
-                                           StringUtils::ToClr(webPluginInfo->GetVersion()));
+                    StringUtils::ToClr(webPluginInfo->GetDescription()),
+                    StringUtils::ToClr(webPluginInfo->GetPath()),
+                    StringUtils::ToClr(webPluginInfo->GetVersion()));
             }
 
             static IList<DraggableRegion>^ FromNative(const std::vector<CefDraggableRegion>& regions)
@@ -107,7 +108,7 @@ namespace CefSharp
                 {
                     list->Add(DraggableRegion(region.bounds.width, region.bounds.height, region.bounds.x, region.bounds.y, region.draggable == 1));
                 }
-                
+
                 return list;
             }
 
@@ -149,32 +150,35 @@ namespace CefSharp
                 {
                     cefValue->SetDouble(Convert::ToDouble(value));
                 }
-                else if (type == List<Object^>::typeid)
+                else if (System::Collections::IDictionary::typeid->IsAssignableFrom(type))
                 {
-                    auto list = safe_cast<List<Object^>^>(value);
-                    auto cefList = CefListValue::Create();
-                    for (int i = 0; i < list->Count; i++)
-                    {
-                        auto value = list[i];
-                        SerializeV8Object(cefList, i, value);
-                    }
-                    cefValue->SetList(cefList);
-                }
-                else if (type == Dictionary<String^, Object^>::typeid)
-                {
-                    auto dictionary = safe_cast<Dictionary<String^, Object^>^>(value);
+                    auto dictionary = (System::Collections::IDictionary^) value;
                     auto cefDictionary = CefDictionaryValue::Create();
 
-                    for each (KeyValuePair<String^, Object^>^ entry in dictionary)
+                    for each (System::Collections::DictionaryEntry entry in dictionary)
                     {
-                        auto key = StringUtils::ToNative(entry->Key);
-                        auto value = entry->Value;
+                        auto key = StringUtils::ToNative(Convert::ToString(entry.Key));
+                        auto value = entry.Value;
                         SerializeV8Object(cefDictionary, key, value);
                     }
 
                     cefValue->SetDictionary(cefDictionary);
                 }
-            
+                else if (System::Collections::IEnumerable::typeid->IsAssignableFrom(type))
+                {
+                    auto enumerable = (System::Collections::IEnumerable^) value;
+                    auto cefList = CefListValue::Create();
+
+                    int i = 0;
+                    for each (Object^ arrObj in enumerable)
+                    {
+                        SerializeV8Object(cefList, i, arrObj);
+
+                        i++;
+                    }
+                    cefValue->SetList(cefList);
+                }
+
                 return cefValue;
             }
 
@@ -211,7 +215,12 @@ namespace CefSharp
                 {
                     return FromNative(value->GetDictionary());
                 }
-                
+
+                if (type == CefValueType::VTYPE_LIST)
+                {
+                    return FromNative(value->GetList());
+                }
+
                 return nullptr;
             }
 
@@ -236,6 +245,54 @@ namespace CefSharp
                 }
 
                 return dict;
+            }
+
+            static List<Object^>^ FromNative(const CefRefPtr<CefListValue>& list)
+            {
+                auto result = gcnew List<Object^>(list->GetSize());
+                for (auto i = 0; i < list->GetSize(); i++)
+                {
+                    result->Add(DeserializeObject(list, i, nullptr));
+                }
+
+                return result;
+            }
+
+            // Copied from CefSharp.BrowserSubprocess.Core\TypeUtils.h since it can't be included
+            static DateTime ConvertCefTimeToDateTime(CefTime time)
+            {
+                return DateTimeUtils::FromCefTime(time.year,
+                    time.month,
+                    time.day_of_month,
+                    time.hour,
+                    time.minute,
+                    time.second,
+                    time.millisecond);
+            }
+
+            static Cookie^ FromNative(const CefCookie& cefCookie)
+            {
+                auto cookie = gcnew Cookie();
+                auto cookieName = StringUtils::ToClr(cefCookie.name);
+
+                if (!String::IsNullOrEmpty(cookieName))
+                {
+                    cookie->Name = cookieName;
+                    cookie->Value = StringUtils::ToClr(cefCookie.value);
+                    cookie->Domain = StringUtils::ToClr(cefCookie.domain);
+                    cookie->Path = StringUtils::ToClr(cefCookie.path);
+                    cookie->Secure = cefCookie.secure == 1;
+                    cookie->HttpOnly = cefCookie.httponly == 1;
+                    cookie->Creation = ConvertCefTimeToDateTime(cefCookie.creation);
+                    cookie->LastAccess = ConvertCefTimeToDateTime(cefCookie.last_access);
+
+                    if (cefCookie.has_expires)
+                    {
+                        cookie->Expires = ConvertCefTimeToDateTime(cefCookie.expires);
+                    }
+                }
+
+                return cookie;
             }
         };
     }
