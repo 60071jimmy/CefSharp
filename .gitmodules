@@ -1,0 +1,3 @@
+[submodule "3rdparty/cef"]
+	path = 3rdparty/cef
+	url = git@github.com:Jimmy-Hu/cef.git
