@@ -99,6 +99,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="$(SolutionDir)\CefSharp.props" />
-  <Import Project="$(SolutionDir)\CefSharp.Native.props" />
+  <Import Project="$(ProjectDir)..\CefSharp.props" />
+  <Import Project="$(ProjectDir)..\CefSharp.Native.props" />
 </Project>

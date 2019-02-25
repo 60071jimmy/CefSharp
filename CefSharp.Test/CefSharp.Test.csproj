@@ -148,6 +148,6 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <Import Project="$(SolutionDir)\CefSharp.props" />
-  <Import Project="$(SolutionDir)\CefSharp.Native.props" />
+  <Import Project="$(ProjectDir)..\CefSharp.props" />
+  <Import Project="$(ProjectDir)..\CefSharp.Native.props" />
 </Project>
