@@ -117,7 +117,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\$(CefSdkVer)\CEF;%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)3rdparty\cef;$(ProjectDir)..\..\..\cef-master</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\$(CefSdkVer)\CEF;%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)3rdparty\cef;$(ProjectDir)..\..\..\cef-master;$(ProjectDir)..\3rdparty\cef</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;_WIN32_WINNT=0x0600;WINVER=0x0600;WIN32;_WINDOWS;WIN32_LEAN_AND_MEAN;USING_CEF_SHARED;_CRT_SECURE_NO_WARNINGS;EXPORT;OS_WIN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
